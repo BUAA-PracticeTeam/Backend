@@ -1,9 +1,7 @@
 # Create your views here.
 import json
 import os
-
 from dotenv import load_dotenv
-
 from myapp.models import UserManager
 import base64
 import uuid
@@ -122,3 +120,21 @@ def update_password(request):
             return JsonResponse({ 'msg': str(e),'code':1}, status=500)
     else:
         return JsonResponse({'msg': '方法不允许','code':1}, status=405)
+
+@csrf_exempt
+def update_user_info(request):
+    if request.method == 'PATCH':
+        try:
+            data = json.loads(request.body)
+            username = data.get('username')
+            nickname = data.get('nickname')
+            email = data.get('email')
+            # 更新用户信息
+            UserManager.objects.filter(username=username).update(nickname=nickname, email=email)
+            return JsonResponse({'msg': '用户信息更新成功', 'code': 0}, status=200)
+        except Exception as e:
+            return JsonResponse({'msg': str(e), 'code': 1}, status=500)
+    else:
+        return JsonResponse({'msg': '方法不允许', 'code': 1}, status=405)
+
+

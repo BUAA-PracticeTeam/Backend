@@ -6,4 +6,5 @@ urlpatterns = [
     path('api/login/', TeamViews.login),
     path('my/update/avatar', TeamViews.update_avatar),
     path('my/update/pwd', TeamViews.update_password),
+    path('my/update/user_info', TeamViews.update_user_info),
 ]
