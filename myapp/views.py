@@ -129,8 +129,12 @@ def update_user_info(request):
             username = data.get('username')
             nickname = data.get('nickname')
             email = data.get('email')
+            signature = data.get('signature')
+            introduction = data.get('introduction')
+            work = data.get('work')
             # 更新用户信息
-            UserManager.objects.filter(username=username).update(nickname=nickname, email=email)
+            UserManager.objects.filter(username=username).update(
+                nickname=nickname, email=email, signature=signature, introduction=introduction, work=work)
             return JsonResponse({'msg': '用户信息更新成功', 'code': 0}, status=200)
         except Exception as e:
             return JsonResponse({'msg': str(e), 'code': 1}, status=500)
