@@ -98,6 +98,30 @@ def update_avatar(request):
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 @csrf_exempt
+def update_photo(request):
+    if request.method == 'PATCH':
+        try:
+            data = json.loads(request.body)
+            photo_data = data.get('photo')
+            username = data.get('username')
+            if not photo_data:
+                return JsonResponse({'error': 'No photo data provided'}, status=400)
+            header, encoded = photo_data.split(',', 1)
+            file_ext = header.split('/')[1].split(';')[0]
+            binary_data = base64.b64decode(encoded)
+            filename = f"photos/{uuid.uuid4()}.{file_ext}"
+            bucket.put_object(filename, binary_data)
+            photo_url = f'https://{OSS_BUCKET_NAME}.{OSS_ENDPOINT}/{filename}'  
+            UserManager.objects.filter(username=username).update(photo=photo_url)
+            return JsonResponse({'photo_url': photo_url, 'code': 0}, status=200)
+        except Exception as e:
+            print('错误：',e)
+            return JsonResponse({'error': str(e)}, status=500)
+    else:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@csrf_exempt
 def update_password(request):
     if request.method == 'PATCH':
         try:
@@ -140,5 +164,43 @@ def update_user_info(request):
             return JsonResponse({'msg': str(e), 'code': 1}, status=500)
     else:
         return JsonResponse({'msg': '方法不允许', 'code': 1}, status=405)
+
+@csrf_exempt
+def get_team_members(request):
+    if request.method == 'GET':
+        try:
+            # 获取所有用户作为团队成员
+            users = UserManager.objects.all()
+            members = []
+            
+            for user in users:
+                member = {
+                    'id': user.id,
+                    'username': user.username,
+                    'nickname': user.nickname or user.username,
+                    'avatar': user.avatar or '',
+                    'photo': user.photo or '',
+                    'work': user.work or '团队成员',
+                    'introduction': user.introduction or '',
+                    'signature': user.signature or '',
+                    'email': user.email or ''
+                }
+                members.append(member)
+            
+            return JsonResponse({
+                'error_num': 0,
+                'msg': 'success',
+                'members': members
+            })
+        except Exception as e:
+            return JsonResponse({
+                'error_num': 1,
+                'msg': f'获取团队成员失败: {str(e)}'
+            })
+    else:
+        return JsonResponse({
+            'error_num': 1,
+            'msg': '方法不允许'
+        })
 
 
