@@ -1,12 +1,21 @@
 from django.urls import path
-from myapp import views as TeamViews
+from myapp.views import user as user
+from myapp.views import article as article
 
 urlpatterns = [
-    path('api/register/', TeamViews.register),
-    path('api/login/', TeamViews.login),
-    path('my/update/avatar', TeamViews.update_avatar),
-    path('my/update/photo', TeamViews.update_photo),
-    path('my/update/pwd', TeamViews.update_password),
-    path('my/update/user_info', TeamViews.update_user_info),
-    path('api/team/members/', TeamViews.get_team_members),
+    path('api/register/', user.register),
+    path('api/login/', user.login),
+    path('my/update/avatar', user.update_avatar),
+    path('my/update/photo', user.update_photo),
+    path('my/update/pwd', user.update_password),
+    path('my/update/user_info', user.update_user_info),
+    path('api/team/members/', user.get_team_members),
+    
+    # 文章相关接口
+    path('my/article/list', article.get_article_list),
+    path('my/article/info', article.get_article_detail),
+    path('my/article/add', article.add_article),
+    path('my/article/edit', article.edit_article),
+    path('my/article/delete', article.delete_article),
+    path('my/article/like', article.like_article),
 ]
