@@ -18,4 +18,5 @@ urlpatterns = [
     path('my/article/edit', article.edit_article),
     path('my/article/delete', article.delete_article),
     path('my/article/like', article.like_article),
+    path('my/article/mylist', article.get_my_article_list),
 ]

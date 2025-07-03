@@ -137,29 +137,31 @@ def add_article(request):
             content = request.POST.get('content')
             state = request.POST.get('state', '草稿')
             tag = request.POST.get('tag', '')
-            
+            username = request.POST.get('username')  # 新增
             # 处理封面图片上传
             cover_img = request.FILES.get('cover_img')
             cover_url = ''
-            
             if cover_img:
-                # 上传到OSS
                 file_ext = cover_img.name.split('.')[-1]
                 filename = f"article_covers/{uuid.uuid4()}.{file_ext}"
                 bucket.put_object(filename, cover_img.read())
                 cover_url = f'https://{OSS_BUCKET_NAME}.{OSS_ENDPOINT}/{filename}'
-            
-            # 创建文章（这里需要根据实际登录用户设置author）
-            # 暂时设置为None，后续可以通过session/token获取当前用户
+            # 查找作者
+            author = None
+            if username:
+                try:
+                    author = UserManager.objects.get(username=username)
+                except UserManager.DoesNotExist:
+                    pass
+            # 创建文章
             article = Articles.objects.create(
                 title=title,
                 content=content,
                 cover=cover_url,
                 tag=tag,
                 state=state,
-                author=None  # 需要根据实际登录用户设置
+                author=author
             )
-            
             return JsonResponse({
                 'error_num': 0,
                 'msg': '发布成功',
@@ -287,3 +289,36 @@ def like_article(request):
                 'error_num': 1,
                 'msg': f'点赞失败: {str(e)}'
             })
+
+@csrf_exempt
+def get_my_article_list(request):
+    """获取当前用户所有文章（不分页，传username）"""
+    if request.method == 'GET':
+        username = request.GET.get('username')
+        state = request.GET.get('state', '')
+        if not username:
+            return JsonResponse({'error_num': 1, 'msg': '用户名不能为空'})
+        try:
+            user = UserManager.objects.get(username=username)
+            queryset = Articles.objects.filter(author=user)
+            if state:
+                queryset = queryset.filter(state=state)
+            queryset = queryset.order_by('-pub_date')
+            data = []
+            for article in queryset:
+                article_data = {
+                    'id': article.id,
+                    'title': article.title,
+                    'cover': article.cover,
+                    'tag': article.tag,
+                    'read': article.read,
+                    'like': article.like,
+                    'pub_date': article.pub_date.isoformat(),
+                    'state': article.state,
+                }
+                data.append(article_data)
+            return JsonResponse({'error_num': 0, 'msg': 'success', 'data': data})
+        except UserManager.DoesNotExist:
+            return JsonResponse({'error_num': 1, 'msg': '用户不存在'})
+        except Exception as e:
+            return JsonResponse({'error_num': 1, 'msg': f'获取用户文章失败: {str(e)}'})
