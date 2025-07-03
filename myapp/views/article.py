@@ -1,7 +1,7 @@
 import json
 import os
 from dotenv import load_dotenv
-from myapp.models import Articles, UserManager
+from myapp.models import Articles as ArticlesModel, UserManager as UserManagerModel
 import base64
 import uuid
 from django.http import JsonResponse
@@ -29,7 +29,7 @@ def get_article_list(request):
             cate_id = request.GET.get('cate_id', '')
             
             # 构建查询条件
-            queryset = Articles.objects.all()
+            queryset = ArticlesModel.objects.all()
             
             if state:
                 queryset = queryset.filter(state=state)
@@ -87,7 +87,7 @@ def get_article_detail(request):
                     'msg': '文章ID不能为空'
                 })
             
-            article = Articles.objects.get(id=article_id)
+            article = ArticlesModel.objects.get(id=article_id)
             
             # 增加阅读量
             article.read += 1
@@ -116,7 +116,7 @@ def get_article_detail(request):
                 'msg': 'success',
                 'data': data
             })
-        except Articles.DoesNotExist:
+        except ArticlesModel.DoesNotExist:
             return JsonResponse({
                 'error_num': 1,
                 'msg': '文章不存在'
@@ -150,11 +150,11 @@ def add_article(request):
             author = None
             if username:
                 try:
-                    author = UserManager.objects.get(username=username)
-                except UserManager.DoesNotExist:
+                    author = UserManagerModel.objects.get(username=username)
+                except UserManagerModel.DoesNotExist:
                     pass
             # 创建文章
-            article = Articles.objects.create(
+            article = ArticlesModel.objects.create(
                 title=title,
                 content=content,
                 cover=cover_url,
@@ -178,18 +178,31 @@ def edit_article(request):
     """编辑文章"""
     if request.method == 'PUT':
         try:
-            # 解析PUT请求的数据
-            data = json.loads(request.body)
+            # 兼容 formData 和 json
+            if request.content_type and request.content_type.startswith('multipart/form-data'):
+                data = request.POST
+                files = request.FILES
+            else:
+                data = json.loads(request.body)
+                files = None
+
             article_id = data.get('id')
-            
             if not article_id:
                 return JsonResponse({
                     'error_num': 1,
                     'msg': '文章ID不能为空'
                 })
-            
-            article = Articles.objects.get(id=article_id)
-            
+
+            try:
+                article_id = int(article_id)
+            except Exception:
+                return JsonResponse({
+                    'error_num': 1,
+                    'msg': '文章ID格式错误'
+                })
+
+            article = ArticlesModel.objects.get(id=article_id)
+
             # 更新字段
             if 'title' in data:
                 article.title = data['title']
@@ -199,22 +212,22 @@ def edit_article(request):
                 article.state = data['state']
             if 'tag' in data:
                 article.tag = data['tag']
-            
+
             # 处理封面图片（如果有的话）
-            cover_img = request.FILES.get('cover_img')
+            cover_img = files.get('cover_img') if files else None
             if cover_img:
                 file_ext = cover_img.name.split('.')[-1]
                 filename = f"article_covers/{uuid.uuid4()}.{file_ext}"
                 bucket.put_object(filename, cover_img.read())
                 article.cover = f'https://{OSS_BUCKET_NAME}.{OSS_ENDPOINT}/{filename}'
-            
+
             article.save()
-            
+
             return JsonResponse({
                 'error_num': 0,
                 'msg': '编辑成功'
             })
-        except Articles.DoesNotExist:
+        except ArticlesModel.DoesNotExist:
             return JsonResponse({
                 'error_num': 1,
                 'msg': '文章不存在'
@@ -238,14 +251,14 @@ def delete_article(request):
                     'msg': '文章ID不能为空'
                 })
             
-            article = Articles.objects.get(id=article_id)
+            article = ArticlesModel.objects.get(id=article_id)
             article.delete()
             
             return JsonResponse({
                 'error_num': 0,
                 'msg': '删除成功'
             })
-        except Articles.DoesNotExist:
+        except ArticlesModel.DoesNotExist:
             return JsonResponse({
                 'error_num': 1,
                 'msg': '文章不存在'
@@ -270,7 +283,7 @@ def like_article(request):
                     'msg': '文章ID不能为空'
                 })
             
-            article = Articles.objects.get(id=article_id)
+            article = ArticlesModel.objects.get(id=article_id)
             article.like += 1
             article.save()
             
@@ -279,7 +292,7 @@ def like_article(request):
                 'msg': '点赞成功',
                 'data': {'like_count': article.like}
             })
-        except Articles.DoesNotExist:
+        except ArticlesModel.DoesNotExist:
             return JsonResponse({
                 'error_num': 1,
                 'msg': '文章不存在'
@@ -299,8 +312,8 @@ def get_my_article_list(request):
         if not username:
             return JsonResponse({'error_num': 1, 'msg': '用户名不能为空'})
         try:
-            user = UserManager.objects.get(username=username)
-            queryset = Articles.objects.filter(author=user)
+            user = UserManagerModel.objects.get(username=username)
+            queryset = ArticlesModel.objects.filter(author=user)
             if state:
                 queryset = queryset.filter(state=state)
             queryset = queryset.order_by('-pub_date')
@@ -318,7 +331,7 @@ def get_my_article_list(request):
                 }
                 data.append(article_data)
             return JsonResponse({'error_num': 0, 'msg': 'success', 'data': data})
-        except UserManager.DoesNotExist:
+        except UserManagerModel.DoesNotExist:
             return JsonResponse({'error_num': 1, 'msg': '用户不存在'})
         except Exception as e:
             return JsonResponse({'error_num': 1, 'msg': f'获取用户文章失败: {str(e)}'})
