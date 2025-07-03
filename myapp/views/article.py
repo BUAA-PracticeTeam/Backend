@@ -176,7 +176,7 @@ def add_article(request):
 @csrf_exempt
 def edit_article(request):
     """编辑文章"""
-    if request.method == 'PUT':
+    if request.method == 'POST':
         try:
             # 兼容 formData 和 json
             if request.content_type and request.content_type.startswith('multipart/form-data'):
