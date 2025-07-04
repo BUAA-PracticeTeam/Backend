@@ -14,6 +14,11 @@ from pathlib import Path
 import pymysql
 
 pymysql.install_as_MySQLdb()
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+    '47.93.81.21',  # 你的公网IP
+]
 
 # 提高上传文件内存限制（单位：字节）
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
@@ -30,8 +35,6 @@ SECRET_KEY = 'django-insecure-p9#!3p-9_n$36kvyf2*%)$q=0f(p5z*tc^$qnm@)sb(1w3w!5h
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
-ALLOWED_HOSTS = []
 
 # Application definition
 
