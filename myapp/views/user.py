@@ -61,7 +61,8 @@ def login(request):
                             'photo': object.photo,
                             'signature': object.signature,
                             'permission': object.permission,
-                            'introduction': object.introduction}
+                            'introduction': object.introduction,
+                            'priority': object.priority}
         response['msg'] = '登录成功'
     except Exception as e:
         response.update({'error_num': 1, 'msg': '用户名或密码错误'})
@@ -183,7 +184,9 @@ def get_team_members(request):
                     'work': user.work or '团队成员',
                     'introduction': user.introduction or '',
                     'signature': user.signature or '',
-                    'email': user.email or ''
+                    'email': user.email or '',
+                    'priority': user.priority or '',
+                    'permission': user.permission or '',
                 }
                 members.append(member)
             

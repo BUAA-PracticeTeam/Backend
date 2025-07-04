@@ -13,6 +13,8 @@ class UserManager(models.Model):
     introduction = models.CharField(max_length=1024, default='')
     photo = models.CharField(max_length=128, default='')
     permission = models.IntegerField(default=0)
+    # 优先级
+    priority = models.IntegerField(default=100)
 
 class Articles(models.Model):
     title = models.CharField(max_length=200)
