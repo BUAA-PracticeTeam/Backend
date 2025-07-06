@@ -23,5 +23,6 @@ urlpatterns = [
     
     # AI助手相关接口
     path('api/ai_chat/', chat.ai_chat),
+    path('api/ai_chat/stream/', chat.ai_chat_stream),
     path('api/ai_chat/health/', chat.ai_chat_health),
 ]

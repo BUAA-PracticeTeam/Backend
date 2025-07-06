@@ -1,6 +1,6 @@
 import json
 import requests
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.conf import settings
@@ -171,6 +171,126 @@ def ai_chat(request):
         return JsonResponse({
             'success': False,
             'message': f'网络请求失败: {str(e)}'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'服务器内部错误: {str(e)}'
+        })
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def ai_chat_stream(request):
+    """AI对话流式接口"""
+    try:
+        # 解析请求数据
+        data = json.loads(request.body)
+        user_message = data.get('user_message', '')
+        history = data.get('history', [])
+        
+        if not user_message:
+            return JsonResponse({
+                'success': False,
+                'message': '用户消息不能为空'
+            })
+        
+        # 构建消息历史
+        messages = [
+            {
+                'role': 'system',
+                'content': build_system_prompt()
+            }
+        ]
+        
+        # 添加对话历史（最多保留最近10轮对话）
+        recent_history = history[-10:] if history else []
+        for conv in recent_history:
+            if conv.get('userMessage'):
+                messages.append({
+                    'role': 'user',
+                    'content': conv['userMessage']['content']
+                })
+            if conv.get('botMessage'):
+                messages.append({
+                    'role': 'assistant',
+                    'content': conv['botMessage']['content']
+                })
+        
+        # 添加当前用户消息
+        messages.append({
+            'role': 'user',
+            'content': user_message
+        })
+        
+        # 调用DeepSeek API（流式）
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {DEEPSEEK_API_KEY}'
+        }
+        
+        payload = {
+            'model': 'deepseek-chat',
+            'messages': messages,
+            'max_tokens': 500,
+            'temperature': 0.7,
+            'stream': True  # 启用流式传输
+        }
+        
+        def generate_stream():
+            try:
+                print(f"开始流式请求: {user_message}")
+                
+                response = requests.post(
+                    DEEPSEEK_API_URL,
+                    headers=headers,
+                    json=payload,
+                    timeout=120,
+                    stream=True  # 启用流式响应
+                )
+                
+                if response.status_code == 200:
+                    for line in response.iter_lines():
+                        if line:
+                            line = line.decode('utf-8')
+                            if line.startswith('data: '):
+                                data_str = line[6:]  # 移除 'data: ' 前缀
+                                if data_str == '[DONE]':
+                                    # 流结束
+                                    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                                    break
+                                else:
+                                    try:
+                                        data = json.loads(data_str)
+                                        if data.get('choices') and data['choices'][0].get('delta'):
+                                            delta = data['choices'][0]['delta']
+                                            if delta.get('content'):
+                                                # 发送内容片段
+                                                yield f"data: {json.dumps({'type': 'content', 'content': delta['content']})}\n\n"
+                                    except json.JSONDecodeError:
+                                        continue
+                else:
+                    # 发送错误信息
+                    error_msg = f'DeepSeek API调用失败: {response.status_code}'
+                    yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
+                    
+            except Exception as e:
+                # 发送错误信息
+                error_msg = f'流式请求失败: {str(e)}'
+                yield f"data: {json.dumps({'type': 'error', 'message': error_msg})}\n\n"
+        
+        # 返回流式响应
+        response = StreamingHttpResponse(
+            generate_stream(),
+            content_type='text/plain'
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'  # 禁用nginx缓冲
+        return response
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': '请求数据格式错误'
         })
     except Exception as e:
         return JsonResponse({
